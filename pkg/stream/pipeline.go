@@ -157,13 +157,13 @@ func (p *Pipeline) process(ctx context.Context, force bool) {
 	msg := p.batch
 
 	for _, stage := range p.stages {
-		msg, err = stage.Process(ctx, msg)
+		msg, _ = stage.Process(ctx, msg)
 
-		if err != nil {
-			p.logger.Error(err, "could not process the batch")
-
-			return
-		}
+		//if err != nil {
+		//	p.logger.Error(err, "could not process the batch")
+		//
+		//	return
+		//}
 	}
 
 	err = p.output.Write(ctx, msg)
