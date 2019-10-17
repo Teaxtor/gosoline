@@ -6,6 +6,7 @@ import (
 	"github.com/applike/gosoline/pkg/cfg"
 	"github.com/applike/gosoline/pkg/mon"
 	"github.com/applike/gosoline/pkg/redis"
+	"github.com/hashicorp/go-multierror"
 	"strings"
 )
 
@@ -71,6 +72,20 @@ func (s *RedisKvStore) Put(ctx context.Context, key interface{}, value interface
 	}
 
 	return nil
+}
+
+func (s *RedisKvStore) PutBatch(ctx context.Context, keys []interface{}, values []interface{}) error {
+	var multiErr error
+
+	for i := range keys {
+		err := s.Put(ctx, keys[i], values[i])
+
+		if err != nil {
+			multiErr = multierror.Append(multiErr, err)
+		}
+	}
+
+	return multiErr
 }
 
 func (s *RedisKvStore) Get(ctx context.Context, key interface{}, value interface{}) (bool, error) {

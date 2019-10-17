@@ -29,6 +29,7 @@ type KvStore interface {
 	Contains(ctx context.Context, key interface{}) (bool, error)
 	Get(ctx context.Context, key interface{}, value interface{}) (bool, error)
 	Put(ctx context.Context, key interface{}, value interface{}) error
+	PutBatch(ctx context.Context, keys []interface{}, values []interface{}) error
 }
 
 func CastKeyToString(key interface{}) (string, error) {

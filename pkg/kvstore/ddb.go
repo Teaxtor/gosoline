@@ -100,6 +100,40 @@ func (s *DdbKvStore) Put(ctx context.Context, key interface{}, value interface{}
 	return nil
 }
 
+func (s *DdbKvStore) PutBatch(ctx context.Context, keys []interface{}, values []interface{}) error {
+	items := make([]*ddbItem, len(keys))
+
+	for i := range keys {
+		bytes, err := Marshal(values[i])
+
+		if err != nil {
+			s.logger.Error(err, "can not marshal value")
+			return err
+		}
+
+		keyStr, err := CastKeyToString(keys[i])
+
+		if err != nil {
+			s.logger.Error(err, "can not cast key to string")
+			return err
+		}
+
+		items[i] = &ddbItem{
+			Key:   keyStr,
+			Value: string(bytes),
+		}
+	}
+
+	_, err := s.repository.BatchPutItems(ctx, items)
+
+	if err != nil {
+		s.logger.Error(err, "can not put value into ddb store")
+		return err
+	}
+
+	return nil
+}
+
 func (s *DdbKvStore) Get(ctx context.Context, key interface{}, value interface{}) (bool, error) {
 	keyStr, err := CastKeyToString(key)
 

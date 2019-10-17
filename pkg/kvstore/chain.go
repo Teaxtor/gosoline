@@ -60,6 +60,21 @@ func (s *ChainKvStore) Put(ctx context.Context, key interface{}, value interface
 	return nil
 }
 
+func (s *ChainKvStore) PutBatch(ctx context.Context, keys []interface{}, values []interface{}) error {
+	lastElementIndex := len(s.chain) - 1
+
+	for i, element := range s.chain {
+		err := element.PutBatch(ctx, keys, values)
+
+		// return error only if last element fails
+		if err != nil && i == lastElementIndex {
+			return errors.Wrapf(err, "could not put %d elements to kvstore %T", len(keys), element)
+		}
+	}
+
+	return nil
+}
+
 func (s *ChainKvStore) Get(ctx context.Context, key interface{}, value interface{}) (bool, error) {
 	var err error
 	var i int

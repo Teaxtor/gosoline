@@ -7,11 +7,13 @@ import (
 	"github.com/VividCortex/mysqlerr"
 	"github.com/applike/gosoline/pkg/cfg"
 	"github.com/applike/gosoline/pkg/mon"
+	"github.com/applike/gosoline/pkg/timeutils"
 	"github.com/cenkalti/backoff"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"reflect"
 	"strconv"
+	"time"
 )
 
 const (
@@ -125,6 +127,8 @@ func (c *ClientSqlx) GetResult(query string, args ...interface{}) (*Result, erro
 				m[colName] = strconv.FormatInt((*val).(int64), 10)
 			case "float64":
 				m[colName] = strconv.FormatFloat((*val).(float64), 'f', -1, 64)
+			case "time.Time":
+				m[colName] = timeutils.FormatDateTime((*val).(time.Time))
 			default:
 				errStr := fmt.Sprintf("could not convert mysql result into string map: %v -> %v is %v", colName, *val, reflect.TypeOf(*val))
 				return nil, errors.New(errStr)
