@@ -31,6 +31,11 @@ type Client interface {
 	NewXmlRequest() *Request
 }
 
+type Settings struct {
+	RetryCount int           `cfg:"retry_count" default:"1"`
+	Timeout    time.Duration `cfg:"timeout" default:"10s"`
+}
+
 type Response struct {
 	Body            []byte
 	StatusCode      int
@@ -44,30 +49,29 @@ type client struct {
 	logger         mon.Logger
 	http           *resty.Client
 	defaultHeaders headers
-	config         cfg.Config
+	settings       *Settings
 }
 
 func NewHttpClient(config cfg.Config, logger mon.Logger) Client {
 	mo := mon.NewMetricDaemonWriter()
 
-	return NewHttpClientWithInterfaces(config, logger, mo)
+	settings := &Settings{}
+	config.UnmarshalKey("http_client", settings)
+
+	return NewHttpClientWithInterfaces(logger, mo, settings)
 }
 
-func NewHttpClientWithInterfaces(config cfg.Config, logger mon.Logger, mo mon.MetricWriter) Client {
+func NewHttpClientWithInterfaces(logger mon.Logger, mo mon.MetricWriter, settings *Settings) Client {
 	httpClient := resty.New()
 
-	retryCount := config.GetInt("http_client_retry_count")
-	timeout := config.GetDuration("http_client_request_timeout")
-
-	httpClient.SetRetryCount(retryCount)
-	httpClient.SetTimeout(time.Second * timeout)
+	httpClient.SetRetryCount(settings.RetryCount)
+	httpClient.SetTimeout(settings.Timeout)
 
 	return &client{
 		mo:             mo,
 		logger:         logger,
 		http:           httpClient,
 		defaultHeaders: make(headers),
-		config:         config,
 	}
 }
 
