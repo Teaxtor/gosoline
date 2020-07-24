@@ -94,12 +94,13 @@ func newKinesisInputFromConfig(config cfg.Config, logger mon.Logger, name string
 }
 
 type redisInputConfiguration struct {
-	Project     string        `cfg:"project"`
-	Family      string        `cfg:"family"`
-	Application string        `cfg:"application"`
-	ServerName  string        `cfg:"server_name" default:"default" validate:"min=1"`
-	Key         string        `cfg:"key" validate:"required,min=1"`
-	WaitTime    time.Duration `cfg:"wait_time" default:"3s"`
+	Project      string        `cfg:"project"`
+	Family       string        `cfg:"family"`
+	Application  string        `cfg:"application"`
+	ServerName   string        `cfg:"server_name" default:"default" validate:"min=1"`
+	Key          string        `cfg:"key" validate:"required,min=1"`
+	WaitTime     time.Duration `cfg:"wait_time" default:"3s"`
+	Unmarshaller string        `cfg:"unmarshaller" default:"msg"`
 }
 
 func newRedisInputFromConfig(config cfg.Config, logger mon.Logger, name string) Input {
@@ -114,9 +115,10 @@ func newRedisInputFromConfig(config cfg.Config, logger mon.Logger, name string) 
 			Family:      configuration.Family,
 			Application: configuration.Application,
 		},
-		ServerName: configuration.ServerName,
-		Key:        configuration.Key,
-		WaitTime:   configuration.WaitTime,
+		ServerName:   configuration.ServerName,
+		Key:          configuration.Key,
+		WaitTime:     configuration.WaitTime,
+		Unmarshaller: configuration.Unmarshaller,
 	}
 
 	return NewRedisListInput(config, logger, settings)

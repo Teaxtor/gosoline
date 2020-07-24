@@ -2,8 +2,8 @@ package stream
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/applike/gosoline/pkg/cfg"
 	"github.com/applike/gosoline/pkg/mon"
 	"github.com/applike/gosoline/pkg/redis"
@@ -17,9 +17,10 @@ const (
 
 type RedisListInputSettings struct {
 	cfg.AppId
-	ServerName string
-	Key        string
-	WaitTime   time.Duration
+	ServerName   string
+	Key          string
+	WaitTime     time.Duration
+	Unmarshaller string `cfg:"unmarshaller" default:"msg"`
 }
 
 type redisListInput struct {
@@ -31,6 +32,8 @@ type redisListInput struct {
 	channel           chan *Message
 	stopped           bool
 	fullyQualifiedKey string
+
+	unmarshaller UnmarshallerFunc
 }
 
 func NewRedisListInput(config cfg.Config, logger mon.Logger, settings *RedisListInputSettings) Input {
@@ -40,10 +43,16 @@ func NewRedisListInput(config cfg.Config, logger mon.Logger, settings *RedisList
 	defaultMetrics := getRedisListInputDefaultMetrics(settings.AppId, settings.Key)
 	mw := mon.NewMetricDaemonWriter(defaultMetrics...)
 
-	return NewRedisListInputWithInterfaces(logger, client, mw, settings)
+	unmarshaller, ok := unmarshallers[settings.Unmarshaller]
+
+	if !ok {
+		logger.Fatal(fmt.Errorf("unknown unmarshaller %s", settings.Unmarshaller), "")
+	}
+
+	return NewRedisListInputWithInterfaces(logger, client, mw, unmarshaller, settings)
 }
 
-func NewRedisListInputWithInterfaces(logger mon.Logger, client redis.Client, mw mon.MetricWriter, settings *RedisListInputSettings) Input {
+func NewRedisListInputWithInterfaces(logger mon.Logger, client redis.Client, mw mon.MetricWriter, unmarshaller UnmarshallerFunc, settings *RedisListInputSettings) Input {
 	fullyQualifiedKey := redis.GetFullyQualifiedKey(settings.AppId, settings.Key)
 
 	return &redisListInput{
@@ -53,6 +62,7 @@ func NewRedisListInputWithInterfaces(logger mon.Logger, client redis.Client, mw 
 		mw:                mw,
 		channel:           make(chan *Message),
 		fullyQualifiedKey: fullyQualifiedKey,
+		unmarshaller:      unmarshaller,
 	}
 }
 
@@ -86,15 +96,14 @@ func (i *redisListInput) Run(ctx context.Context) error {
 			continue
 		}
 
-		msg := Message{}
-		err = json.Unmarshal([]byte(rawMessage[1]), &msg)
+		msg, err := i.unmarshaller(&rawMessage[1])
 
 		if err != nil {
 			i.logger.Error(err, "could not unmarshal message")
 			continue
 		}
 
-		i.channel <- &msg
+		i.channel <- msg
 		i.writeListReadMetric()
 	}
 }
