@@ -3,22 +3,30 @@ package db_repo
 import (
 	"context"
 	"fmt"
+
 	"github.com/applike/gosoline/pkg/mon"
 	"github.com/hashicorp/go-multierror"
 )
 
+type CrudRepository interface {
+	Create(ctx context.Context, value ModelBased) error
+	Read(ctx context.Context, id *uint, out ModelBased) error
+	Update(ctx context.Context, value ModelBased) error
+	Delete(ctx context.Context, value ModelBased) error
+}
+
 type notifyingRepository struct {
-	Repository
+	CrudRepository
 
 	logger    mon.Logger
 	notifiers NotificationMap
 }
 
-func NewNotifyingRepository(logger mon.Logger, base Repository) *notifyingRepository {
+func NewNotifyingRepository(logger mon.Logger, base CrudRepository) *notifyingRepository {
 	return &notifyingRepository{
-		Repository: base,
-		logger:     logger,
-		notifiers:  make(NotificationMap),
+		CrudRepository: base,
+		logger:         logger,
+		notifiers:      make(NotificationMap),
 	}
 }
 
@@ -37,7 +45,7 @@ func (r *notifyingRepository) AddNotifier(t string, c Notifier) {
 }
 
 func (r *notifyingRepository) Create(ctx context.Context, value ModelBased) error {
-	if err := r.Repository.Create(ctx, value); err != nil {
+	if err := r.CrudRepository.Create(ctx, value); err != nil {
 		return err
 	}
 
@@ -45,7 +53,7 @@ func (r *notifyingRepository) Create(ctx context.Context, value ModelBased) erro
 }
 
 func (r *notifyingRepository) Update(ctx context.Context, value ModelBased) error {
-	if err := r.Repository.Update(ctx, value); err != nil {
+	if err := r.CrudRepository.Update(ctx, value); err != nil {
 		return err
 	}
 
@@ -53,7 +61,7 @@ func (r *notifyingRepository) Update(ctx context.Context, value ModelBased) erro
 }
 
 func (r *notifyingRepository) Delete(ctx context.Context, value ModelBased) error {
-	if err := r.Repository.Delete(ctx, value); err != nil {
+	if err := r.CrudRepository.Delete(ctx, value); err != nil {
 		return err
 	}
 
@@ -70,7 +78,6 @@ func (r *notifyingRepository) doCallback(ctx context.Context, callbackType strin
 
 	for _, c := range r.notifiers[callbackType] {
 		err := c.Send(ctx, callbackType, value)
-
 		if err != nil {
 			errors = multierror.Append(errors, err)
 			logger.Warn("%T notifier errored out with: %v", c, err)
