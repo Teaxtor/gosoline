@@ -2,7 +2,9 @@ package aws
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -34,7 +36,8 @@ type Credentials struct {
 }
 
 type ClientHttpSettings struct {
-	Timeout time.Duration `cfg:"timeout" default:"0"`
+	Timeout             time.Duration `cfg:"timeout" default:"0"`
+	TLSNextProtoEnabled bool          `cfg:"tls_next_proto_enabled" default:"true"`
 }
 
 type ClientSettings struct {
@@ -119,8 +122,20 @@ func DefaultClientConfig(ctx context.Context, config cfg.Config, logger log.Logg
 		return stack.Finalize.Insert(AttemptLoggerRetryMiddleware(logger), "Retry", middleware.After)
 	})
 
-	if settings.HttpClient.Timeout > 0 {
-		awsConfig.HTTPClient = awsHttp.NewBuildableClient().WithTimeout(settings.HttpClient.Timeout)
+	if settings.HttpClient.Timeout > 0 || settings.HttpClient.TLSNextProtoEnabled == false {
+		client := awsHttp.NewBuildableClient()
+
+		if settings.HttpClient.Timeout > 0 {
+			client = client.WithTimeout(settings.HttpClient.Timeout)
+		}
+
+		if !settings.HttpClient.TLSNextProtoEnabled {
+			client = client.WithTransportOptions(func(transport *http.Transport) {
+				transport.TLSNextProto = map[string]func(authority string, c *tls.Conn) http.RoundTripper{}
+			})
+		}
+
+		awsConfig.HTTPClient = client
 	}
 
 	return awsConfig, nil
