@@ -3,11 +3,12 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"net/url"
+
 	"github.com/golang-migrate/migrate/v4/database"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/database/redshift"
 	"github.com/lib/pq"
-	"net/url"
 )
 
 const DriverNameRedshift = "redshift"
@@ -23,7 +24,7 @@ func NewRedshiftDriverFactory() DriverFactory {
 
 type redshiftDriverFactory struct{}
 
-func (m *redshiftDriverFactory) GetDSN(settings Settings) string {
+func (m *redshiftDriverFactory) GetDSN(settings Settings) (string, error) {
 	dsn := url.URL{
 		Scheme: "postgres",
 		User:   url.UserPassword(settings.Uri.User, settings.Uri.Password),
@@ -34,7 +35,7 @@ func (m *redshiftDriverFactory) GetDSN(settings Settings) string {
 	qry.Set("dbname", settings.Uri.Database)
 	dsn.RawQuery = qry.Encode()
 
-	return dsn.String()
+	return dsn.String(), nil
 }
 
 func (m *redshiftDriverFactory) GetMigrationDriver(db *sql.DB, database string, migrationsTable string) (database.Driver, error) {

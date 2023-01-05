@@ -29,7 +29,11 @@ type Settings struct {
 
 	Uri        Uri               `cfg:"uri"`
 	Migrations MigrationSettings `cfg:"migrations"`
+
+	Advanced interface{}
 }
+
+var advancedSettingsUnmarshaller = map[string]interface{}{}
 
 var defaultConnections = struct {
 	lck       sync.Mutex
@@ -85,7 +89,10 @@ func NewConnectionWithInterfaces(settings Settings) (*sqlx.DB, error) {
 		return nil, fmt.Errorf("could not get dsn provider for driver %s", settings.Driver)
 	}
 
-	dsn := driverFactory.GetDSN(settings)
+	dsn, err := driverFactory.GetDSN(settings)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get DSN: %w", err)
+	}
 
 	genDriver, err := getGenericDriver(settings.Driver, dsn)
 	if err != nil {
@@ -112,6 +119,15 @@ func createSettings(config cfg.Config, key string) Settings {
 	}
 
 	config.UnmarshalKey(fmt.Sprintf("db.%s", key), &settings)
+
+	if advanced, ok := advancedSettingsUnmarshaller[settings.Driver]; ok {
+		key := fmt.Sprintf("db.%s.advanced", key)
+		if config.IsSet(key) {
+			config.UnmarshalKey(key, advanced)
+
+			settings.Advanced = advanced
+		}
+	}
 
 	return settings
 }

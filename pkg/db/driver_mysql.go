@@ -3,11 +3,12 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"net/url"
+	"strconv"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang-migrate/migrate/v4/database"
 	"github.com/golang-migrate/migrate/v4/database/mysql"
-	"net/url"
-	"strconv"
 )
 
 const DriverMysql = "mysql"
@@ -22,7 +23,7 @@ func NewMysqlDriverFactory() DriverFactory {
 
 type mysqlDriverFactory struct{}
 
-func (m *mysqlDriverFactory) GetDSN(settings Settings) string {
+func (m *mysqlDriverFactory) GetDSN(settings Settings) (string, error) {
 	dsn := url.URL{
 		User: url.UserPassword(settings.Uri.User, settings.Uri.Password),
 		Host: fmt.Sprintf("tcp(%s:%d)", settings.Uri.Host, settings.Uri.Port),
@@ -37,7 +38,7 @@ func (m *mysqlDriverFactory) GetDSN(settings Settings) string {
 
 	uri := dsn.String()
 
-	return uri[2:]
+	return uri[2:], nil
 }
 
 func (m *mysqlDriverFactory) GetMigrationDriver(db *sql.DB, database string, migrationsTable string) (database.Driver, error) {

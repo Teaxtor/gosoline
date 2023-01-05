@@ -130,86 +130,12 @@ func (c *ChangeHistoryManager) dropHistoryTriggers(originalTable *tableMetadata,
 }
 
 func (c *ChangeHistoryManager) createHistoryTriggers(originalTable *tableMetadata, historyTable *tableMetadata) []string {
-	const NewRecord = "NEW"
-	const OldRecord = "OLD"
-
-	statements := []string{
-		fmt.Sprintf(`CREATE TRIGGER %s_ai AFTER INSERT ON %s FOR EACH ROW %s WHERE %s`,
-			originalTable.tableName,
-			originalTable.tableNameQuoted,
-			c.insertHistoryEntry(originalTable, historyTable, "insert", true),
-			c.primaryKeysMatchCondition(originalTable, NewRecord),
-		),
-		fmt.Sprintf(`CREATE TRIGGER %s_au AFTER UPDATE ON %s FOR EACH ROW %s WHERE %s AND (%s)`,
-			originalTable.tableName,
-			originalTable.tableNameQuoted,
-			c.insertHistoryEntry(originalTable, historyTable, "update", true),
-			c.primaryKeysMatchCondition(originalTable, NewRecord),
-			c.rowUpdatedCondition(originalTable),
-		),
-		fmt.Sprintf(`CREATE TRIGGER %s_bd BEFORE DELETE ON %s FOR EACH ROW %s WHERE %s`,
-			originalTable.tableName,
-			originalTable.tableNameQuoted,
-			c.insertHistoryEntry(originalTable, historyTable, "delete", false),
-			c.primaryKeysMatchCondition(originalTable, OldRecord),
-		),
-		fmt.Sprintf(`CREATE TRIGGER %s_revai BEFORE INSERT ON %s FOR EACH ROW %s`,
-			historyTable.tableName,
-			historyTable.tableNameQuoted,
-			c.incrementRevision(originalTable, historyTable),
-		),
+	factory, ok := triggerStatementFactory[c.orm.Dialect().GetName()]
+	if !ok {
+		return []string{}
 	}
 
-	return statements
-}
-
-func (c *ChangeHistoryManager) insertHistoryEntry(originalTable *tableMetadata, historyTable *tableMetadata, action string, includeAuthorEmail bool) string {
-	columnNames := originalTable.columnNamesQuoted()
-	if !includeAuthorEmail {
-		columnNames = originalTable.columnNamesQuotedExcludingValue(c.settings.ChangeAuthorField)
-	}
-
-	columns := strings.Join(columnNames, ",")
-	values := "d." + strings.Join(columnNames, ", d.")
-
-	return fmt.Sprintf(`
-		INSERT INTO %s (change_history_action,change_history_revision,change_history_action_at,%s) 
-			SELECT '%s', NULL, NOW(), %s 
-			FROM %s AS d`,
-		historyTable.tableNameQuoted,
-		columns,
-		action,
-		values,
-		originalTable.tableNameQuoted)
-}
-
-func (c *ChangeHistoryManager) incrementRevision(originalTable *tableMetadata, historyTable *tableMetadata) string {
-	return fmt.Sprintf(`
-		BEGIN 
-			SET NEW.change_history_revision = (SELECT IFNULL(MAX(d.change_history_revision), 0) + 1 FROM %s as d WHERE %s); 
-		END`,
-		historyTable.tableNameQuoted,
-		c.primaryKeysMatchCondition(originalTable, "NEW"),
-	)
-}
-
-func (c *ChangeHistoryManager) primaryKeysMatchCondition(originalTable *tableMetadata, record string) string {
-	var conditions []string
-	for _, columnName := range originalTable.primaryKeyNamesQuoted() {
-		condition := fmt.Sprintf("d.%s = %s.%s", columnName, record, columnName)
-		conditions = append(conditions, condition)
-	}
-	return strings.Join(conditions, " AND ")
-}
-
-func (c *ChangeHistoryManager) rowUpdatedCondition(originalTable *tableMetadata) string {
-	columnNames := originalTable.columnNamesQuotedExcludingValue(c.settings.ChangeAuthorField, ColumnUpdatedAt)
-	var conditions []string
-	for _, columnName := range columnNames {
-		condition := fmt.Sprintf("NOT (OLD.%s <=> NEW.%s)", columnName, columnName)
-		conditions = append(conditions, condition)
-	}
-	return strings.Join(conditions, " OR ")
+	return factory(originalTable, historyTable, c.settings.ChangeAuthorField)
 }
 
 func (c *ChangeHistoryManager) updateHistoryTable(historyTable *tableMetadata) (bool, string) {

@@ -1,17 +1,36 @@
 package env
 
 import (
+	"testing"
+
 	"github.com/Masterminds/squirrel"
 	"github.com/jmoiron/sqlx"
 	"github.com/justtrackio/gosoline/pkg/cfg"
 	"github.com/stretchr/testify/assert"
 )
 
+type SqlComponent interface {
+	Client() *sqlx.DB
+	Exec(qry string, args ...interface{})
+	AssertRowCount(table string, expectedCount int)
+}
+
+type sqlComponent struct {
+	t      *testing.T
+	client *sqlx.DB
+}
+
 type mysqlComponent struct {
 	baseComponent
-	client      *sqlx.DB
+	sqlComponent
+
 	credentials mysqlCredentials
 	binding     containerBinding
+}
+
+func (c *mysqlComponent) SetT(t *testing.T) {
+	c.sqlComponent.t = t
+	c.baseComponent.SetT(t)
 }
 
 func (c *mysqlComponent) CfgOptions() []cfg.Option {
@@ -31,11 +50,11 @@ func (c *mysqlComponent) CfgOptions() []cfg.Option {
 	}
 }
 
-func (c *mysqlComponent) Client() *sqlx.DB {
+func (c *sqlComponent) Client() *sqlx.DB {
 	return c.client
 }
 
-func (c *mysqlComponent) Exec(qry string, args ...interface{}) {
+func (c *sqlComponent) Exec(qry string, args ...interface{}) {
 	_, err := c.client.Exec(qry, args...)
 	if err != nil {
 		assert.FailNow(c.t, err.Error(), "failed to execute query")
@@ -43,7 +62,7 @@ func (c *mysqlComponent) Exec(qry string, args ...interface{}) {
 	}
 }
 
-func (c *mysqlComponent) AssertRowCount(table string, expectedCount int) {
+func (c *sqlComponent) AssertRowCount(table string, expectedCount int) {
 	qry, args, err := squirrel.Select("COUNT(*)").From(table).ToSql()
 	if err != nil {
 		assert.FailNow(c.t, err.Error(), "can not generate qry to count rows in table %s", table)

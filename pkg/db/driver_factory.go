@@ -3,11 +3,12 @@ package db
 import (
 	"database/sql"
 	"fmt"
+
 	"github.com/golang-migrate/migrate/v4/database"
 )
 
 type DriverFactory interface {
-	GetDSN(settings Settings) string
+	GetDSN(settings Settings) (string, error)
 	GetMigrationDriver(db *sql.DB, database string, migrationsTable string) (database.Driver, error)
 }
 

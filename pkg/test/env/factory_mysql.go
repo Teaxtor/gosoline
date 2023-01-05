@@ -133,7 +133,9 @@ func (f mysqlFactory) Component(_ cfg.Config, _ log.Logger, containers map[strin
 		baseComponent: baseComponent{
 			name: s.Name,
 		},
-		client:      client,
+		sqlComponent: sqlComponent{
+			client: client,
+		},
 		credentials: s.Credentials,
 		binding:     binding,
 	}

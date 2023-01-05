@@ -20,7 +20,7 @@ type streamOutputSettings struct {
 
 type streamOutputFactory struct{}
 
-func (f *streamOutputFactory) Detect(config cfg.Config, manager *ComponentsConfigManager) error {
+func (f streamOutputFactory) Detect(config cfg.Config, manager *ComponentsConfigManager) error {
 	outputs := config.GetStringMap("stream.output", map[string]interface{}{})
 
 	for outputName := range outputs {

@@ -1,6 +1,7 @@
 package db_repo
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/jinzhu/gorm"
@@ -89,10 +90,10 @@ func (m *tableMetadataBuilder) getColumnMetadata(name string, nameQuoted string,
 func (m *tableMetadataBuilder) dataTypeOfField(field *gorm.StructField) string {
 	tag := m.scope.Dialect().DataTypeOf(field)
 
-	tag = strings.Replace(tag, "AUTO_INCREMENT", "", -1)
-	tag = strings.Replace(tag, "UNIQUE", "", -1)
+	re := regexp.MustCompile("(?i)(AUTO_?INCREMENT|UNIQUE|PRIMARY KEY)")
+	tag = re.ReplaceAllString(tag, "")
 
-	return tag
+	return strings.TrimSpace(tag)
 }
 
 func newTableMetadata(scope *gorm.Scope, tableName string, fields []*gorm.StructField) *tableMetadata {

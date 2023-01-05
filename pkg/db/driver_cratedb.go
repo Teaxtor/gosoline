@@ -3,10 +3,11 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"net/url"
+
 	"github.com/golang-migrate/migrate/v4/database"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/jackc/pgx/v4/stdlib"
-	"net/url"
 )
 
 const DriverNameCrateDb = "cratedb"
@@ -22,7 +23,7 @@ func NewCrateDbDriverFactory() *crateDbDriverFactory {
 	return &crateDbDriverFactory{}
 }
 
-func (c crateDbDriverFactory) GetDSN(settings Settings) string {
+func (c crateDbDriverFactory) GetDSN(settings Settings) (string, error) {
 	dsn := url.URL{
 		Scheme: "postgres",
 		Host:   fmt.Sprintf("%s:%d", settings.Uri.Host, settings.Uri.Port),
@@ -30,7 +31,7 @@ func (c crateDbDriverFactory) GetDSN(settings Settings) string {
 		Path:   settings.Uri.Database,
 	}
 
-	return dsn.String()
+	return dsn.String(), nil
 }
 
 func (c crateDbDriverFactory) GetMigrationDriver(db *sql.DB, database string, migrationsTable string) (database.Driver, error) {

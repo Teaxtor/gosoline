@@ -176,8 +176,8 @@ func (e *Environment) Localstack(name string) *localstackComponent {
 	return e.Component(ComponentLocalstack, name).(*localstackComponent)
 }
 
-func (e *Environment) MySql(name string) *mysqlComponent {
-	return e.Component(componentMySql, name).(*mysqlComponent)
+func (e *Environment) Sql(typ, name string) SqlComponent {
+	return e.Component(typ, name).(SqlComponent)
 }
 
 func (e *Environment) Wiremock(name string) *wiremockComponent {
